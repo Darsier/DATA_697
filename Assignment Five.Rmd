@@ -1,0 +1,108 @@
+---
+title: "Assignment 5"
+author: "Dariusz Siergiejuk"
+date: "`r Sys.Date()`"
+output: 
+  prettydoc::html_pretty:
+    theme: hpstr
+    highlight: github
+# Possible pretty doc themes are:
+#     cayman, architect, tactile, hpstr, leonids
+---
+
+# Assignment – Tidying and Transforming Data
+
+## The chart above describes arrival delays for two airlines across five destinations. Your task is to:
+
+### (1) Create a .CSV file (or optionally, a MySQL database!) that includes all of the information above. You’re encouraged to use a “wide” structure similar to how the information appears above, so that you can practice tidying and transformations as described below.
+
+### (2) Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data.
+
+### (3) Perform analysis to compare the arrival delays for the two airlines.
+
+### (4) Your code should be in an R Markdown file, posted to rpubs.com, and should include narrative descriptions of your data cleanup work, analysis, and conclusions. Please include in your homework submission:
+
+#### The URL to the .Rmd file in your GitHub repository. and
+
+#### The URL for your rpubs.com web page.
+
+### Introduction
+
+Inspecting data in the context of best on-time arrival for the included airlines and their airports/destinations.
+
+##### Step One = Loading Relevant Libraries
+
+```{r}
+library(tidyr)
+library(dplyr,warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE)
+library(stringr)
+library(ggplot2)
+```
+
+##### Step Two = Creating .csv File and Uploading it to GitHub
+
+##### Step Three = Importing .csv File from GitHub
+
+```{r}
+flug.daten <- read.csv("https://raw.githubusercontent.com/Darsier/DATA_697/master/flight_data.csv", stringsAsFactors = F)
+flug.daten[2,1] <- flug.daten[1,1]
+flug.daten[5,1] <- flug.daten[4,1]
+flug.daten[,2] <- sapply(flug.daten[,2], str_replace, " ", ".")
+flug.daten
+```
+
+##### Step Four = Cleaning Data a Bit
+
+```{r}
+cleaning.daten <- flug.daten %>% 
+  na.omit() %>% 
+  rename(airline = X, type.arrival = X.1) %>% 
+  gather("arrival.city", "n", 3:7) %>% 
+  spread(type.arrival, "n") %>% 
+  mutate(total.arrivals = delayed + on.time, on.time.percent.rate = on.time / total.arrivals*100) %>% 
+  arrange(desc(total.arrivals))
+
+cleaning.daten[,2] <- sapply(cleaning.daten[,2], str_replace, "\\.", " ")
+cleaning.daten
+```
+
+##### Step Five = Actual Airline Activity Inspection
+
+###### The Best Arrival Rate at Arrival Destination
+
+```{r}
+beste.fluggesellschaft <-
+cleaning.daten %>% 
+  filter(on.time.percent.rate == max(on.time.percent.rate))
+beste.fluggesellschaft
+```
+
+###### The Airline with the Best Timely Arrival Figure
+
+```{r}
+bestefluggesellschaft <- cleaning.daten %>% 
+  group_by(airline) %>% 
+  summarise(on.time.airline.perecent.rate = sum(on.time) / sum(total.arrivals)*100) %>% 
+  filter(on.time.airline.perecent.rate == max(on.time.airline.perecent.rate))
+bestefluggesellschaft
+```
+
+###### Highest to Lowest Rank Performance
+
+```{r}
+leistung <- cleaning.daten %>% 
+  group_by(arrival.city) %>% 
+  summarise(on.time.city.percent.rate = sum(on.time) / sum(total.arrivals)*100) %>% 
+  mutate(ranking.on.time = min_rank(desc(on.time.city.percent.rate))) %>% 
+  arrange(ranking.on.time)
+leistung
+```
+
+### Documentation
+
+Loading data for analysis to GitHub. Downloading data for actual analysis applying R packages and its tools. Drawing conclusions from the observed data.
+
+### Concluding Remarks
+
+By inspecting the above table, we can see that Phoenix comes on the top with the best on time arrival rating. This is partially due to the fact that the airport is located in the area with a few rainy days on the annual basis. Phoenix is closely followed by San Diego, Los Angeles, Seattle [lots of foggy and rainy days here], and San Francisco.
